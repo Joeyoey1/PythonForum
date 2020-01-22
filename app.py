@@ -3,9 +3,9 @@ import functools
 import os
 import re
 import urllib
+import uuid
 
 from flask import (Flask, abort, flash, Markup, redirect, render_template, request, Response, session, url_for)
-from flask_user import current_user, login_required, roles_required, UserManager, UserMixin
 from markdown import markdown
 from markdown.extensions.codehilite import CodeHiliteExtension
 from markdown.extensions.extra import ExtraExtension
@@ -15,7 +15,7 @@ from peewee import *
 from playhouse.flask_utils import FlaskDB, get_object_or_404, object_list
 from playhouse.sqlite_ext import *
 
-
+ADMIN_USERNAME = 'admin'
 ADMIN_PASSWORD = 'secret'
 APP_DIR = os.path.dirname(os.path.realpath(__file__))
 DATABASE = 'sqliteext:///%s' % os.path.join(APP_DIR, 'blog.db')
@@ -32,12 +32,52 @@ database = flask_db.database
 
 oembed_providers = bootstrap_basic(OEmbedCache())
 
+class my_dictionary(dict):  
+  
+    # __init__ function  
+    def __init__(self):  
+        self = dict()  
+          
+    # Function to add key:value  
+    def add(self, key, value):  
+        self[key] = value 
+
+    def containsKey(self, key):
+        for k, v in self.items():
+            if k == key:
+                return True
+        return False
+
+    def containsValue(self, value):
+        for k, v in self.items():
+            if v == value:
+                return True
+        return False
+        
+
+session_map = my_dictionary()
+
+class Role(flask_db.Model):
+    name = CharField(unique=True, primary_key=True)
+
+class User(flask_db.Model):
+    #active = BooleanField()
+
+    #email = CharField(unique=True)
+    #email_confirmed_at = DateTimeField(default=datetime.datetime.now, index=True)
+    password = CharField()
+
+    user_name = CharField(unique=True)
+
+    roles = ForeignKeyField(Role, backref='users')
+
 class Entry(flask_db.Model):
     title = CharField()
     slug = CharField(unique=True)
     content = TextField()
     published = BooleanField(index=True)
     timestamp = DateTimeField(default=datetime.datetime.now, index=True)
+    author = ForeignKeyField(User, backref='entries')
 
     @property
     def html_content(self):
@@ -87,22 +127,10 @@ class Entry(flask_db.Model):
 
         return (Entry.select(Entry, FTSEntry.rank().alias('score')).join(FTSEntry, on=(Entry.id == FTSEntry.docid)).where((Entry.published == True) & (FTSEntry.match(search))).order_by(SQL('score')))
 
-class Role(flask_db.Model):
-    name = CharField(unique=True)
 
-class User(flask_db.Model):
-    active = BooleanField()
 
-    email = CharField(unique=True)
-    email_confirmed_at = DateTimeField(default=datetime.datetime.now, index=True)
-    password = CharField()
 
-    user_name = CharField(unique=True)
-
-    roles = ForeignKeyField(Role, backref='roles')
-    entries = ForeignKeyField(Entry, backref='entries')
-
-# TODO make own system of seeing users permissions, as not using flask setup.
+# TODO make own system of seeing users permissions, as not using flask setup
 
 
 class FTSEntry(FTSModel):
@@ -113,46 +141,86 @@ class FTSEntry(FTSModel):
 
 
 
+def login_required(fn):
+    @functools.wraps(fn)
+    def inner(*args, **kwargs):
+        if session.get('logged_in'):
+            if session_map.containsKey(session.get('unique')):
+                return fn(*args, **kwargs)
+            else:
+                session.clear()
+        return redirect(url_for('login', next=request.path))
+    return inner
 
-#def login_required(fn):
-#    @functools.wraps(fn)
-#    def inner(*args, **kwargs):
-#        if session.get('logged_in'):
-#            return fn(*args, **kwargs)
-#        return redirect(url_for('login', next=request.path))
-#    return inner
-
+@app.route('/create_user/', methods=['GET', 'POST'])
+def create_user():
+    next_url = request.args.get('next') or request.form.get('next')
+    if request.method == 'POST' and request.form.get('username') and request.form.get('password'):
+        username = request.form.get('username')
+        password = request.form.get('password')
+        for user in User.select():
+            if user.user_name == username:
+                flash('A user with that name already exists!', 'danger')
+                return render_template('create_user.html', next_url=next_url)
+        if not username == '' and not password == '':
+            user = User(user_name=username, password=password)
+            user.roles = Role(name='User')
+            user.save()
+            
+            flash('User created!', 'success')
+            return render_template('login.html', next_url=next_url)
+        else:
+            flash('You must enter a username and a password', 'danger')
+    return render_template('create_user.html', next_url=next_url)
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
     next_url = request.args.get('next') or request.form.get('next')
-    if request.method == 'POST' and request.form.get('password'):
+    if request.method == 'POST' and request.form.get('password') and request.form.get('username'):
+        username = request.form.get('username')
         password = request.form.get('password')
-        if password == app.config['ADMIN_PASSWORD']:
+        if password == app.config['ADMIN_PASSWORD'] and username == app.config['ADMIN_USERNAME']:
             session['logged_in'] = True
+            session['unique'] = uuid.uuid1()
             session.permanent = True
             flash('You are now logged in.', 'success')
             return redirect(next_url or url_for('index'))
         else:
-            flash('Incorrect password.', 'danger')
+            for user in User.select():
+                if user.user_name == username and user.password == password:
+                    session['logged_in'] = True
+                    session['unique'] = uuid.uuid1()
+                    session.permanent = True
+                    session_map.add(session.get('unique'), user)
+                    flash('You are now logged in.', 'success')
+                    return redirect(next_url or url_for('index'))
+            flash('Incorrect login details!', 'danger')
     return render_template('login.html', next_url=next_url)
 
 @app.route('/logout/', methods=['GET', 'POST'])
 def logout():
     if request.method == 'POST':
-        session.clear()
+        try:
+            session_map.pop(session.get('unique'))
+            session.clear()
+        except KeyError:
+            session.clear()
         return redirect(url_for('login'))
     return render_template('logout.html')
 
 
 @app.route('/')
 def index():
+    if session.get('logged_in'):
+        if not session_map.containsKey(session.get('unique')):
+            session.clear()
     search_query = request.args.get('q')
     if search_query:
         query = Entry.search(search_query)
     else:
         query = Entry.public().order_by(Entry.timestamp.desc())
     return object_list('index.html', query, search=search_query, check_bounds=False)
+
 
 # init login required view
 @app.route('/drafts/')
@@ -224,7 +292,10 @@ def not_found(exc):
     return Response('<h3>Not Found</h3>'), 404
 
 def main():
-    database.create_tables([Entry, FTSEntry, User, Role, UserRoles])
+    database.create_tables([Entry, FTSEntry, User, Role])
+    Role.get_or_create(name='User')
+    Role.get_or_create(name='Moderator')
+    Role.get_or_create(name='Admin')
     app.run(debug=True)
 
 if __name__ == "__main__":

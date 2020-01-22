@@ -27,10 +27,13 @@
         </div>
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-            {% if session.logged_in %}
+            {% if not session.logged_in %}
+              <li><a href="{{ url_for('login') }}">Login</a></li>
+            {% else %}
               <li><a href="{{ url_for('drafts') }}">Drafts</a></li>
               <li><a href="{{ url_for('create') }}">Create Entry</a></li>
               <li><a href="{{ url_for('logout') }}">Log out</a></li>
+              <li><a href="{{ url_for('index') }}">Profile</a></li>
             {% endif %}
             {% block extra_header %}{% endblock %}
           </ul>
