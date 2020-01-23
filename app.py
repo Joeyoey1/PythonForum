@@ -61,10 +61,6 @@ class Role(flask_db.Model):
     name = CharField(unique=True, primary_key=True)
 
 class User(flask_db.Model):
-    #active = BooleanField()
-
-    #email = CharField(unique=True)
-    #email_confirmed_at = DateTimeField(default=datetime.datetime.now, index=True)
     password = CharField()
 
     user_name = CharField(unique=True)
@@ -125,6 +121,11 @@ class Entry(flask_db.Model):
         else:
             search = ' '.join(words)
 
+        entries = Entry.select().join(User).where(User.user_name.in_(words)).order_by(Entry.timestamp)
+
+        if entries:
+            return entries
+
         return (Entry.select(Entry, FTSEntry.rank().alias('score')).join(FTSEntry, on=(Entry.id == FTSEntry.docid)).where((Entry.published == True) & (FTSEntry.match(search))).order_by(SQL('score')))
 
 
@@ -152,8 +153,23 @@ def login_required(fn):
         return redirect(url_for('login', next=request.path))
     return inner
 
+def edit_check(author_id):
+    if session.get('logged_in'):
+        if session_map.containsKey(session.get('unique')):
+            user = session_map.get(session.get('unique'))
+            if user.user_name == User.get(author_id).user_name:
+                return True
+    return False
+
+def relog_check():
+    if session.get('logged_in'):
+        if not session_map.containsKey(session.get('unique')):
+            session.clear()
+            
+
 @app.route('/create_user/', methods=['GET', 'POST'])
 def create_user():
+    relog_check()
     next_url = request.args.get('next') or request.form.get('next')
     if request.method == 'POST' and request.form.get('username') and request.form.get('password'):
         username = request.form.get('username')
@@ -173,8 +189,10 @@ def create_user():
             flash('You must enter a username and a password', 'danger')
     return render_template('create_user.html', next_url=next_url)
 
+
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
+    relog_check()
     next_url = request.args.get('next') or request.form.get('next')
     if request.method == 'POST' and request.form.get('password') and request.form.get('username'):
         username = request.form.get('username')
@@ -190,15 +208,17 @@ def login():
                 if user.user_name == username and user.password == password:
                     session['logged_in'] = True
                     session['unique'] = uuid.uuid1()
-                    session.permanent = True
                     session_map.add(session.get('unique'), user)
+                    session.permanent = True
                     flash('You are now logged in.', 'success')
                     return redirect(next_url or url_for('index'))
             flash('Incorrect login details!', 'danger')
     return render_template('login.html', next_url=next_url)
 
+
 @app.route('/logout/', methods=['GET', 'POST'])
 def logout():
+    relog_check()
     if request.method == 'POST':
         try:
             session_map.pop(session.get('unique'))
@@ -208,12 +228,9 @@ def logout():
         return redirect(url_for('login'))
     return render_template('logout.html')
 
-
 @app.route('/')
 def index():
-    if session.get('logged_in'):
-        if not session_map.containsKey(session.get('unique')):
-            session.clear()
+    relog_check()
     search_query = request.args.get('q')
     if search_query:
         query = Entry.search(search_query)
@@ -226,6 +243,7 @@ def index():
 @app.route('/drafts/')
 @login_required
 def drafts():
+    relog_check()
     query = Entry.drafts().order_by(Entry.timestamp.desc())
     return object_list('index.html', query)
 
@@ -233,9 +251,10 @@ def drafts():
 @app.route('/create/', methods=['GET', 'POST'])
 @login_required
 def create():
+    relog_check()
     if request.method == 'POST':
         if request.form.get('title') and request.form.get('content'):
-            entry = Entry.create(title=request.form['title'], content=request.form['content'], published=request.form.get('published') or False)
+            entry = Entry.create(title=request.form['title'], content=request.form['content'], published=request.form.get('published') or False, author=session_map.get(session.get('unique')))
             flash('Entry created successfully!', 'success')
             if entry.published:
                 return redirect(url_for('detail', slug=entry.slug))
@@ -246,24 +265,50 @@ def create():
     
     return render_template('create.html', entry=Entry(title='', content=''))
 
+@app.route('/profile/<name>')
+def profileOther(name):
+    relog_check()
+    user = User.get(user_name=name)
+    if not user == None:
+        entries = Entry.select().join(User).where(User.user_name == user.user_name)
+        return render_template('profile.html', user=user, entries=entries)
+    flash('User not found, perhaps a mistype?', 'danger')
+    return redirect(url_for('index'))
+
+@app.route('/profile/')
+@login_required
+def profile():
+    relog_check()
+    if session_map.containsKey(session.get('unique')):
+        user = User.get(session_map.get(session.get('unique'))) 
+    if not user == None:
+        entries = Entry.select().join(User).where(User.user_name == user.user_name)
+        return render_template('profile.html', user=user, entries=entries)
+    flash('User not found, perhaps a mistype?', 'danger')
+    return redirect(url_for('index'))
+
 
 # Detail view 
 @app.route('/<slug>/')
 def detail(slug):
+    relog_check()
     if session.get('logged_in'):
         query = Entry.select()
     else:
         query = Entry.public()
     entry = get_object_or_404(query, Entry.slug == slug)
-    return render_template('detail.html', entry=entry)
+
+    return render_template('detail.html', entry=entry, editable=edit_check(entry.author))
 
 
 # Edit view
 @app.route('/<slug>/edit/', methods=['GET', 'POST'])
 @login_required
 def edit(slug):
+    relog_check()
     entry = get_object_or_404(Entry, Entry.slug == slug)
-    if request.method == 'POST':
+    
+    if request.method == 'POST' and edit_check(entry.author):
         if request.form.get('title') and request.form.get('content'):
             entry.title = request.form['title']
             entry.content = request.form['content']
@@ -274,10 +319,12 @@ def edit(slug):
             if entry.published:
                 return redirect(url_for('detail', slug=entry.slug))
             else:
-                return redirect(url_for('edit', slug=entry.slug))
+                return redirect(url_for('edit', slug=entry.slug, editable=edit_check(entry.author)))
         else:
             flash('Title and Content are required!', 'danger')
-    return render_template('edit.html', entry=entry)
+    if edit_check(entry.author):
+        return render_template('edit.html', entry=entry, editable=edit_check(entry.author))
+    return redirect(url_for('detail', slug=entry.slug))
 
 @app.template_filter('clean_querystring')
 def clean_querystring(request_args, *keys_to_remove, **new_values):

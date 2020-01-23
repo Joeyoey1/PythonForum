@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+
+{% block title %}{{ user.user_name }}'s Profile{% endblock %}
+
+{% block content_title %}{{ user.user_name }}'s Profile{% endblock %}
+
+
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-2">
+            <h2>{{ user.user_name }}</h2>
+        </div>
+        <div class="col-7">
+            <h3>Posts</h3>
+            {% for entry in entries %}
+                <h3>
+                    <a href="{% if entry.published %}{{ url_for('detail', slug=entry.slug) }}{% else %}{{ url_for('edit', slug=entry.slug) }}{% endif %}">
+                    {{ entry.title }}
+                    </a>
+                </h3>
+                <p>Created by {{ entry.author.user_name }} {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

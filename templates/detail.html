@@ -4,13 +4,13 @@
 
 {% block content_title %}{{ entry.title }}{% endblock %}
 
-{% block extra_header %}
-  {% if session.logged_in %}
-    <li><a href="{{ url_for('edit', slug=entry.slug) }}">Edit entry</a></li>
-  {% endif %}
-{% endblock %}
 
 {% block content %}
-  <p>Created {{ entry.timestamp.strftime('%m/%d/%Y at %G:%I%p') }}</p>
-  {{ entry.html_content }}
+    <p>Created by {{ entry.author.user_name }} {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
+    {{ entry.html_content }}
+    {% if session.logged_in and editable %}
+    <div class="form-group">
+      <a href="{{ url_for('edit', slug=entry.slug) }}">Edit Post</a>
+    </div>
+    {% endif %}
 {% endblock %}
