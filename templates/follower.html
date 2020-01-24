@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.user_name }}'s Followed by{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>{{ user.user_name }}'s Followed by</h2>
+    </div>
+    <div class="card-body">
+        {% if not followers %}
+        <div class="card-body">
+            <h3>Nobody</h3>
+        </div>
+        {% endif %}
+        {% for follow in followers %}
+        <div class="card-body">
+            <h3>
+                <a href="{{ url_for('profile', name=follow.user_name) }}">
+                    {{ follow.user_name }}
+                </a>
+            </h3>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

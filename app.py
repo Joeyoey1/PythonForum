@@ -336,6 +336,24 @@ def detail(slug):
 
     return render_template('detail.html', entry=entry, editable=edit_check(entry.author), replies=replies)
 
+@app.route('/<name>/followers')
+def followers(name):
+    relog_check()
+    user = User.get(user_name=name)
+    editable = edit_check(user.id)
+    followers = UserFollow.select().where(UserFollow.user == user.user_name)
+
+    return render_template('follower.html', user=user, followers=followers, editable=editable)
+
+
+@app.route('/<name>/following')
+def following(name):
+    relog_check()
+    user = User.get(user_name=name)
+    editable = edit_check(user.id)
+    following = UserFollow.select().where(UserFollow.follower == user.id)
+
+    return render_template('following.html', user=user, following=following, editable=editable)
 
 # Edit view
 @app.route('/<slug>/edit/', methods=['GET', 'POST'])
