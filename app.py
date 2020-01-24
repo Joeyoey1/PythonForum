@@ -67,6 +67,19 @@ class User(flask_db.Model):
 
     roles = ForeignKeyField(Role, backref='users')
 
+
+
+    @classmethod
+    def search(cls, query):
+        words = [word.strip() for word in query.split() if word.strip()]
+        if not words:
+            return User.select().where(User.id == 0)
+        users = User.select().where(User.user_name.in_(words))
+
+        return users
+        
+
+
 class Entry(flask_db.Model):
     title = CharField()
     slug = CharField(unique=True)
@@ -110,8 +123,8 @@ class Entry(flask_db.Model):
         return Entry.select().where(Entry.published == True)
 
     @classmethod
-    def drafts(cls):
-        return Entry.select().where(Entry.published == False)
+    def drafts(cls, user):
+        return Entry.select().where(Entry.published == False & Entry.author == user.id)
 
     @classmethod
     def search(cls, query):
@@ -128,8 +141,11 @@ class Entry(flask_db.Model):
 
         return (Entry.select(Entry, FTSEntry.rank().alias('score')).join(FTSEntry, on=(Entry.id == FTSEntry.docid)).where((Entry.published == True) & (FTSEntry.match(search))).order_by(SQL('score')))
 
-
-
+class Reply(flask_db.Model):
+    content = TextField()
+    timestamp = DateTimeField(default=datetime.datetime.now, index=True)
+    author = ForeignKeyField(User, backref='entries')
+    entry = ForeignKeyField(Entry, backref='replies')
 
 # TODO make own system of seeing users permissions, as not using flask setup
 
@@ -234,9 +250,11 @@ def index():
     search_query = request.args.get('q')
     if search_query:
         query = Entry.search(search_query)
+        users = User.search(search_query)
     else:
         query = Entry.public().order_by(Entry.timestamp.desc())
-    return object_list('index.html', query, search=search_query, check_bounds=False)
+        users = User.select().where(User.id == -1)
+    return object_list('index.html', query, search=search_query, context_variable='post_list', check_bounds=False, user_list=users) 
 
 
 # init login required view
@@ -289,7 +307,7 @@ def profile():
 
 
 # Detail view 
-@app.route('/<slug>/')
+@app.route('/<slug>/', methods=['GET', 'POST'])
 def detail(slug):
     relog_check()
     if session.get('logged_in'):
@@ -298,7 +316,17 @@ def detail(slug):
         query = Entry.public()
     entry = get_object_or_404(query, Entry.slug == slug)
 
-    return render_template('detail.html', entry=entry, editable=edit_check(entry.author))
+    replies = Reply.select().where(Reply.entry == entry.id) 
+
+    if request.method == 'POST' and session.get('logged_in'):
+        if request.form.get('content'):
+            reply = Reply.create(content=request.form.get('content'), author=session_map.get(session.get('unique')), entry=entry)
+            reply.save()
+            return redirect(url_for('detail', slug=entry.slug))
+            
+
+
+    return render_template('detail.html', entry=entry, editable=edit_check(entry.author), replies=replies)
 
 
 # Edit view
@@ -339,7 +367,7 @@ def not_found(exc):
     return Response('<h3>Not Found</h3>'), 404
 
 def main():
-    database.create_tables([Entry, FTSEntry, User, Role])
+    database.create_tables([Entry, FTSEntry, User, Role, Reply])
     Role.get_or_create(name='User')
     Role.get_or_create(name='Moderator')
     Role.get_or_create(name='Admin')

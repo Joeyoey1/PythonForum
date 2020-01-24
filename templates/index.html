@@ -2,16 +2,40 @@
 
 {% block title %}Forum Posts{% endblock %}
 
-{% block content_title %}{% if search %}Search "{{ search }}"{% else %}Forum Posts{% endif %}{% endblock %}
+{% block content_title %}{% if search %}Search "{{ search }}"{% endif %}{% endblock %}
 
 {% block content %}
-  {% for entry in object_list %}
+<div class="card">
+  {% for user in user_list %}
+  {% if loop.first %}
+  <div class="card-header">
+    <h1 class="card-title">Users</h1>
+  </div>
+  {% endif %}
+  <div class="card-body">
+    <h3>
+      <a href="{{ url_for('profile', name=user.user_name) }}">
+        {{ user.user_name }}
+      </a>
+    </h3>
+  </div>
+  {% endfor %}
+  {% for entry in post_list %}
+  {% if loop.first %}
+  <div class="card-header">
+    <h1 class="card-title">Posts</h1>
+  </div>
+  {% endif %}
+  <div class="card-body">
     <h3>
       <a href="{% if entry.published %}{{ url_for('detail', slug=entry.slug) }}{% else %}{{ url_for('edit', slug=entry.slug) }}{% endif %}">
         {{ entry.title }}
       </a>
     </h3>
-    <p>Created by {{ entry.author.user_name }} {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
+    <p>Created by <a href="{{ url_for('profile', name=entry.author.user_name) }}">
+      {{ entry.author.user_name }}
+    </a> {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
+  </div>
   {% endfor %}
-  {% include "includes/pagination.html" %}
+</div>
 {% endblock %}

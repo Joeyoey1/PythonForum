@@ -6,11 +6,45 @@
 
 
 {% block content %}
-    <p>Created by {{ entry.author.user_name }} {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
+<div class="card">
+  <div class="card-header">
+    <p>Created by <a href="{{ url_for('profile', name=entry.author.user_name) }}">
+        {{ entry.author.user_name }}
+      </a> {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
+  </div>
+  <div class="card-body">
     {{ entry.html_content }}
     {% if session.logged_in and editable %}
     <div class="form-group">
       <a href="{{ url_for('edit', slug=entry.slug) }}">Edit Post</a>
     </div>
     {% endif %}
+  </div>
+  {% if session.logged_in %}
+  <form action="{% block form_action %}{{ url_for('detail', slug=entry.slug) }}{% endblock %}" class="form-horizontal"
+    method="post">
+    <div class="form-group">
+      <label for="Content" class="col-sm-2 control-label">Reply</label>
+      <div class="col-sm-10">
+        <textarea class="form-control" id="content" name="content" style="height: 300px;"></textarea>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="col-sm-offset-2 col-sm-10">
+        <button class="btn btn-default" type="submit">Post</button>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% for reply in replies %}
+<div class="card">
+  <div class="card-header">
+    <p>Posted by {{ reply.author.user_name }} {{ reply.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
+  </div>
+  <div class="card-body">
+    {{ reply.content }}
+  </div>
+</div>
+{% endfor %}
 {% endblock %}

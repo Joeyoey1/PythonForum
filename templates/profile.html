@@ -9,20 +9,30 @@
 
 {% block content %}
 <div class="container">
-    <div class="row">
-        <div class="col-2">
-            <h2>{{ user.user_name }}</h2>
-        </div>
-        <div class="col-7">
-            <h3>Posts</h3>
-            {% for entry in entries %}
-                <h3>
-                    <a href="{% if entry.published %}{{ url_for('detail', slug=entry.slug) }}{% else %}{{ url_for('edit', slug=entry.slug) }}{% endif %}">
-                    {{ entry.title }}
-                    </a>
-                </h3>
-                <p>Created by {{ entry.author.user_name }} {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
-            {% endfor %}
+    <div class="card">
+        <div class="row">
+            <div class="col-3">
+                <div class="card-header">
+                    <h2>{{ user.user_name }}</h2>
+                    <h4>{{ user.roles.name }}</h4>
+                </div>
+            </div>
+            <div class="col-7">
+                <div class="card-body">
+                    <h3>Posts</h3>
+                    {% for entry in entries %}
+                    <h3>
+                        <a
+                            href="{% if entry.published %}{{ url_for('detail', slug=entry.slug) }}{% else %}{{ url_for('edit', slug=entry.slug) }}{% endif %}">
+                            {{ entry.title }}
+                        </a>
+                    </h3>
+                    <p>Created by <a href="{{ url_for('profile', name=entry.author.user_name) }}">
+                        {{ entry.author.user_name }}
+                      </a> {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
