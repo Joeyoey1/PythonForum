@@ -74,10 +74,14 @@ class User(flask_db.Model):
         words = [word.strip() for word in query.split() if word.strip()]
         if not words:
             return User.select().where(User.id == 0)
-        users = User.select().where(User.user_name.in_(words))
+        users = User.select().where(User.user_name.contains(words))
 
         return users
         
+
+class UserFollow(flask_db.Model):
+    user = ForeignKeyField(User, backref='followed')
+    follower = ForeignKeyField(User, backref='follower')
 
 
 class Entry(flask_db.Model):
@@ -289,7 +293,9 @@ def profileOther(name):
     user = User.get(user_name=name)
     if not user == None:
         entries = Entry.select().join(User).where(User.user_name == user.user_name)
-        return render_template('profile.html', user=user, entries=entries)
+        following = UserFollow.select().where(UserFollow.follower == user.id)
+        followers = UserFollow.select().where(UserFollow.user == user.id)
+        return render_template('profile.html', user=user, entries=entries, followers=followers, following=following)
     flash('User not found, perhaps a mistype?', 'danger')
     return redirect(url_for('index'))
 
@@ -301,7 +307,9 @@ def profile():
         user = User.get(session_map.get(session.get('unique'))) 
     if not user == None:
         entries = Entry.select().join(User).where(User.user_name == user.user_name)
-        return render_template('profile.html', user=user, entries=entries)
+        following = UserFollow.select().where(UserFollow.follower == user.id)
+        followers = UserFollow.select().where(UserFollow.user == user.id)
+        return render_template('profile.html', user=user, entries=entries, followers=followers, following=following)
     flash('User not found, perhaps a mistype?', 'danger')
     return redirect(url_for('index'))
 
@@ -367,7 +375,7 @@ def not_found(exc):
     return Response('<h3>Not Found</h3>'), 404
 
 def main():
-    database.create_tables([Entry, FTSEntry, User, Role, Reply])
+    database.create_tables([Entry, FTSEntry, User, Role, Reply, UserFollow])
     Role.get_or_create(name='User')
     Role.get_or_create(name='Moderator')
     Role.get_or_create(name='Admin')

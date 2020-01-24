@@ -38,6 +38,9 @@
   {% endif %}
 </div>
 {% for reply in replies %}
+{% if loop.first %}
+<h2>Replies</h2>
+{% endif %}
 <div class="card">
   <div class="card-header">
     <p>Posted by {{ reply.author.user_name }} {{ reply.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>

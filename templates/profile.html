@@ -12,9 +12,21 @@
     <div class="card">
         <div class="row">
             <div class="col-3">
-                <div class="card-header">
+                <div class="card-header" style="height: 100%;">
                     <h2>{{ user.user_name }}</h2>
                     <h4>{{ user.roles.name }}</h4>
+                    <h5>Followers {% if not followers %}0{% endif %}{% for follower in followers %}
+                        {% if loop.first %}
+                        {{ loop.length }}
+                        {% endif %}
+                        {% endfor %}
+                    </h5>
+                    <h5>Following {% if not following %}0{% endif %}{% for follow in following %}
+                        {% if loop.first %}
+                        {{ loop.length }}
+                        {% endif %}
+                        {% endfor %}
+                    </h5>
                 </div>
             </div>
             <div class="col-7">
