@@ -1,0 +1,1 @@
+This is a project where I wanted to learn the Flask library in Python and experiment with what I could do I update it when I have time in-between classes. I want to develop this to the point where it is pretty plug and play where other users could download and run and just alter some css to make the forums their own.
