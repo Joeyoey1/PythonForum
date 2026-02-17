@@ -18,7 +18,7 @@
         {% for follow in following %}
         <div class="card-body">
             <h3>
-                <a href="{{ url_for('profile', name=follow.user_name) }}">
+                <a href="{{ url_for('main.profile_other', name=follow.user_name) }}">
                     {{ follow.user_name }}
                 </a>
             </h3>

@@ -8,20 +8,20 @@
 {% block content %}
 <div class="card">
   <div class="card-header">
-    <p>Created by <a href="{{ url_for('profile', name=entry.author.user_name) }}">
+    <p>Created by <a href="{{ url_for('main.profile_other', name=entry.author.user_name) }}">
         {{ entry.author.user_name }}
       </a> {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
   </div>
   <div class="card-body">
-    {{ entry.html_content }}
-    {% if session.logged_in and editable %}
+    {{ entry_html_content }}
+    {% if current_user.is_authenticated and editable %}
     <div class="form-group">
-      <a href="{{ url_for('edit', slug=entry.slug) }}">Edit Post</a>
+      <a href="{{ url_for('main.edit', slug=entry.slug) }}">Edit Post</a>
     </div>
     {% endif %}
   </div>
-  {% if session.logged_in %}
-  <form action="{% block form_action %}{{ url_for('detail', slug=entry.slug) }}{% endblock %}" class="form-horizontal"
+  {% if current_user.is_authenticated %}
+  <form action="{% block form_action %}{{ url_for('main.detail', slug=entry.slug) }}{% endblock %}" class="form-horizontal"
     method="post">
     <div class="form-group">
       <label for="Content" class="col-sm-2 control-label">Reply</label>

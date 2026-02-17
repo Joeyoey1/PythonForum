@@ -14,14 +14,14 @@
             <div class="col-3">
                 <div class="card-header" style="height: 100%;">
                     <h2>{{ user.user_name }}</h2>
-                    <h4>{{ user.roles.name }}</h4>
-                    <h5><a href="{{ url_for('followers', name=user.user_name) }}">Followers {% if not followers %}0{% endif %}{% for follower in followers %}
+                    <h4>{{ user.role.name if user.role else 'User' }}</h4>
+                    <h5><a href="{{ url_for('main.followers', name=user.user_name) }}">Followers {% if not followers %}0{% endif %}{% for follower in followers %}
                         {% if loop.first %}
                         {{ loop.length }}
                         {% endif %}
                         {% endfor %}</a>
                     </h5>
-                    <h5><a href="{{ url_for('following', name=user.user_name) }}">Following {% if not following %}0{% endif %}{% for follow in following %}
+                    <h5><a href="{{ url_for('main.following', name=user.user_name) }}">Following {% if not following %}0{% endif %}{% for follow in following %}
                         {% if loop.first %}
                         {{ loop.length }}
                         {% endif %}
@@ -35,11 +35,11 @@
                     {% for entry in entries %}
                     <h3>
                         <a
-                            href="{% if entry.published %}{{ url_for('detail', slug=entry.slug) }}{% else %}{{ url_for('edit', slug=entry.slug) }}{% endif %}">
+                            href="{% if entry.published %}{{ url_for('main.detail', slug=entry.slug) }}{% else %}{{ url_for('main.edit', slug=entry.slug) }}{% endif %}">
                             {{ entry.title }}
                         </a>
                     </h3>
-                    <p>Created by <a href="{{ url_for('profile', name=entry.author.user_name) }}">
+                    <p>Created by <a href="{{ url_for('main.profile_other', name=entry.author.user_name) }}">
                         {{ entry.author.user_name }}
                       </a> {{ entry.timestamp.strftime('%m/%d/%Y at %H:%M%p') }}</p>
                     {% endfor %}

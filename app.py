@@ -398,7 +398,7 @@ def main():
     Role.get_or_create(name='User')
     Role.get_or_create(name='Moderator')
     Role.get_or_create(name='Admin')
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)
 
 if __name__ == "__main__":
     main()
