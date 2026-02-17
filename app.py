@@ -96,7 +96,7 @@ class Entry(flask_db.Model):
     def html_content(self):
         hilite = CodeHiliteExtension(linenums=False, css_class='highlight')
         extras = ExtraExtension()
-        markdown_content = markdown(self.content, extentions=[hilite, extras])
+        markdown_content = markdown(self.content, extensions=[hilite, extras])
         oembed_content = parse_html(markdown_content, oembed_providers, urlize_all=True, maxwidth=app.config['SITE_WIDTH'])
         return Markup(oembed_content)
 
@@ -128,7 +128,7 @@ class Entry(flask_db.Model):
 
     @classmethod
     def drafts(cls, user):
-        return Entry.select().where(Entry.published == False & Entry.author == user.id)
+        return Entry.select().where((Entry.published == False) & (Entry.author == user.id))
 
     @classmethod
     def search(cls, query):
@@ -266,7 +266,8 @@ def index():
 @login_required
 def drafts():
     relog_check()
-    query = Entry.drafts().order_by(Entry.timestamp.desc())
+    current_user = session_map.get(session.get('unique'))
+    query = Entry.drafts(current_user).order_by(Entry.timestamp.desc())
     return object_list('index.html', query)
 
 # Create view
